@@ -1,11 +1,9 @@
 import socket
 import subprocess
 import time
-from tqdm import tqdm
 from docx import Document
 from docx.shared import Inches
-from builtins import FileNotFoundError
-from builtins import ImportError
+from tqdm import tqdm
 
 print("\033[1;36;40m EIC SEGMENTATION TEST \033[0m")
 
@@ -25,27 +23,37 @@ with open(input_file_path, "r") as input_file:
 
 # Create Word document and add a table
 document = Document()
-table = document.add_table(rows=1, cols=3)
+table = document.add_table(rows=len(ip_addresses) + 1, cols=5)
 table.style = "Table Grid"
 
-# Add table headers
-hdr_cells = table.rows[0].cells
-hdr_cells[0].text = "Local IP address"
-hdr_cells[1].text = "IP address"
-hdr_cells[2].text = "Compliant"
+# Set table headers
+headers = ["Probe Source", "Destination VLAN", "Scan State", "Compliance Status", "Accessible/Not Accessible"]
+for i, header in enumerate(headers):
+    table.cell(0, i).text = header
 
 # Ping each IP address and write results to table
-for ip in tqdm(ip_addresses, desc="Pinging", ascii=True, unit="IP"):
-    ping_result = subprocess.run(["ping", "-c", "1", "-W", "1", ip], stdout=subprocess.PIPE)
-    compliant = "non-compliant" if ping_result.returncode == 0 else "compliant"
-    row_cells = table.add_row().cells
-    row_cells[0].text = local_ip_address
-    row_cells[1].text = ip
-    row_cells[2].text = compliant
-    
+ping_log = []
+for i, ip in enumerate(ip_addresses):
+    ping_process = subprocess.Popen(["ping", "-c", "3", ip], stdout=subprocess.PIPE, universal_newlines=True)
+    output, _ = ping_process.communicate()
+    ping_result = ping_process.returncode
+    compliant = "non-compliant" if ping_result == 0 else "compliant"
+    table.cell(i + 1, 0).text = local_ip_address + " (CDE In-Scope)"
+    table.cell(i + 1, 1).text = ip
+    table.cell(i + 1, 2).text = "CDE In-Scope to Out-of-Scope"
+    table.cell(i + 1, 3).text = compliant
+    table.cell(i + 1, 4).text = "Accessible" if compliant == "non-compliant" else "Not Accessible"
+
+    # Store ping log
+    ping_log.append(f"Pinging {ip}... {compliant}\n{output}")
+
     time.sleep(0.5)  # Wait for half a second before pinging the next IP address
 
 # Save Word document
 document.save(output_file_path)
+
+# Print ping log
+for log in ping_log:
+    print(log)
 
 print(f"Results saved to {output_file_path}")
