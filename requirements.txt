@@ -1,0 +1,10 @@
+requests
+nmap
+pymongo
+paramiko
+python-docx
+pyfiglet
+colorama
+tqdm
+beautifulsoup4
+tabulate
